@@ -1,0 +1,97 @@
+# RacconAnalytics — Entorno completo (Microservicios + DBs)
+# Uso: docker compose up -d --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: raccon-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: users_service
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: raccon-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  users-service:
+    build:
+      context: ./users-service
+      dockerfile: Dockerfile
+    container_name: raccon-users-service
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/users_service?schema=public
+      - REDIS_URL=redis://redis:6379
+    env_file:
+      - ./users-service/.env
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  youtube-service:
+    build:
+      context: ./youtube-acquisition-service
+      dockerfile: Dockerfile
+    container_name: raccon-youtube-service
+    restart: unless-stopped
+    env_file:
+      - ./youtube-acquisition-service/.env
+    ports:
+      - "8000:8000"
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: raccon-api-gateway
+    restart: unless-stopped
+    environment:
+      - USER_SERVICE_URL=http://users-service:3001
+      - YOUTUBE_SCRAPPER_SERVICE_URL=http://youtube-service:8000/api
+    env_file:
+      - ./api-gateway/.env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - users-service
+      - youtube-service
+      # nlp-service removed from composition
+
+
+
+  web-page:
+    build:
+      context: ./web-page
+      dockerfile: Dockerfile
+    container_name: raccon-web-page
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - api-gateway
+
+volumes:
+  pgdata:

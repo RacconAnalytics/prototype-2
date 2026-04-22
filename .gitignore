@@ -1,0 +1,16 @@
+# Logs
+*.log
+.logs-*
+
+# Local scripts and AI files
+SKILL.md
+start-local.sh
+
+# IDE and System files
+.vscode/
+.idea/
+.DS_Store
+node_modules/
+dist/
+build/
+.env
