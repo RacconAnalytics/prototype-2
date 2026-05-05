@@ -97,7 +97,7 @@ Se implementó un patrón arquitécnico con un componente orquestador que hace r
 ---
 ## **Layered Structure**
 
-![](./images/Layered-Architecture-view-Logic-layers.png)
+![](./images/Layered-view.png)
 
 ## Tier 1 — Presentation
 
