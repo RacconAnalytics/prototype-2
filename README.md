@@ -99,7 +99,7 @@ Se implementó un patrón arquitécnico con un componente orquestador que hace r
 #### **Logic layers**
 Para complementar la vista por capas de todo el sistema, se establecieron de igual forma la estructura de capas lógicas o subarquitectura de los componentes lógicos a continuación:
 
-![](./images/Youtube_subarchitecture.png)
+![](./images/Layered-Architecture-view-Logic-layers.png)
 
 
 ___
