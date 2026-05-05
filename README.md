@@ -226,9 +226,6 @@ Gestiona autenticación, usuarios y servicios relacionados.
 
 - *Models / Schemas*:
   Definen estructuras de datos para usuarios y autenticación.
-
----
-
 ___
 ## **Prototype**
 ### Intructions
