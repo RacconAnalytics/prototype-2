@@ -414,7 +414,33 @@ La aplicación fue dividida en dos modulos principales y 3 sub-modulos, con un t
 
 ![](./images/Vista_Despliegue.png)
 
+## Arquitectura de Despliegue del Sistema
 
+El diagrama de despliegue ilustra la distribución física y lógica de los componentes del sistema, dividiendo la arquitectura en dos zonas de red principales: una red de área local (LAN) y una red externa (Internet). El sistema se distribuye a través de dos nodos físicos o virtuales que alojan múltiples entornos de ejecución y microservicios.
+
+1. Zona LAN: Node 1 (Device Localhost)
+Este nodo actúa como el entorno principal de alojamiento local y contiene la mayoría de los microservicios, interfaces y bases de datos operativas. La configuración de despliegue en este nodo es la siguiente:
+Interfaces de Usuario y Gateway:
+•Website Frontend: Se encuentra desplegado en un entorno de ejecución Node.js y se expone a través del puerto 3000.
+•Desktop Frontend: Está desplegado bajo el marco de trabajo .NET (no se especifica un puerto de red aplicable).
+•API Gateway: Actúa como punto de entrada y está desplegado en un entorno Go, operando en el puerto 8080.
+
+Microservicios de Procesamiento y Adquisición:
+
+•YouTube Data Acquisition Microservice: Desplegado mediante ejecución de Python en el puerto 8000.
+•Natural Language Processing Microservice: Se ejecuta sobre una máquina virtual de Java (JVM) utilizando el puerto 8193.
+•Google Trends Data Acquisition Microservice: Desplegado mediante ejecución de Python en el puerto 8001.
+•Users Management Microservice: Se encuentra alojado en un entorno Node.js, configurado en el puerto 3001.
+
+Almacenamiento en Caché y Bases de Datos Locales:
+•Cache YouTube Historical Search Keywords: Utiliza Redis como entorno de ejecución y opera en el puerto 6379.
+•Google Trends Historical Search Keywords: Base de datos alojada en un motor MongoDB sobre el puerto 27017.
+•Users: Base de datos relacional administrada mediante PostgreSQL, exponiendo el puerto 5432.
+
+2. Zona Internet: Node 2 (Server)
+Este nodo representa un servidor remoto accesible a través de Internet, dedicado específicamente al almacenamiento persistente externo.
+Almacenamiento Remoto:
+•YouTube Historical Search Keywords: Base de datos desplegada en un motor MongoDB, operando en el puerto estándar 27017.
 ___
 ## **Prototype**
 ### Intructions
