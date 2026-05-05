@@ -1,0 +1,18 @@
+[submodule "api-gateway"]
+	path = api-gateway
+	url = https://github.com/RacconAnalytics/api-gateway.git
+[submodule "google-trends-acquisition-service"]
+	path = google-trends-acquisition-service
+	url = https://github.com/RacconAnalytics/google-trends-acquisition-service.git
+[submodule "nlp-service-nvidia"]
+	path = nlp-service-nvidia
+	url = https://github.com/RacconAnalytics/nlp-service-nvidia.git
+[submodule "users-service"]
+	path = users-service
+	url = https://github.com/RacconAnalytics/users-service.git
+[submodule "web-page"]
+	path = web-page
+	url = https://github.com/RacconAnalytics/web-page.git
+[submodule "youtube-acquisition-service"]
+	path = youtube-acquisition-service
+	url = https://github.com/RacconAnalytics/youtube-acquisition-service.git
