@@ -133,6 +133,7 @@ services:
       GOOGLE_TRENDS_SERVICE_URL: "http://google-trends-service:8001"
       REDDIT_SCRAPPER_SERVICE_URL: ""
       NLP_SERVICE_URL: "http://nlp-service:8193"
+      PROXY_TIMEOUT_SECONDS: "30"
     depends_on:
       - users-service
       - youtube-service
