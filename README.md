@@ -227,6 +227,18 @@ Gestiona autenticación, usuarios y servicios relacionados.
 
 - *Models / Schemas*:
   Definen estructuras de datos para usuarios y autenticación.
+
+---
+
+### Decomposition View
+
+![](./images/Vista_Descomposicion.png)
+
+---
+
+### Deployment View
+
+![](./images/Vista_Despliegue.png)
 ___
 ## **Prototype**
 ### Intructions
@@ -271,10 +283,6 @@ Web Frontend (Next.js)
     - Desktop Frontend (WPF)
         - Windows
         - .NET SDK 10 (target net10.0-windows) + WPF (ver desktop-frontend/desktop-frontend.csproj)
-
-### Decomposition View
-
-![](./images/Vista_Descomposicion.png)
 
 ___
 **Pasos para despliegue:**
