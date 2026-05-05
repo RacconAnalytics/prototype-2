@@ -10,6 +10,3 @@
 [submodule "youtube-acquisition-service"]
 	path = youtube-acquisition-service
 	url = https://github.com/RacconAnalytics/youtube-acquisition-service.git
-[submodule "NLP-service"]
-	path = NLP-service
-	url = https://github.com/RacconAnalytics/NLP-service.git
