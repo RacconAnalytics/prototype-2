@@ -19,7 +19,7 @@ Raccon Analytics
 
 ### Logo
 
-![](logo.jfif)
+![](images/logo.jfif)
 
 ### Description
 
@@ -45,7 +45,7 @@ Para el desarrolllo del sistema se usaron los siguientes lenguajes de programaci
 
 #### C&C View:
 
-![](Vista-C&C.jpeg)
+![](images/Vista-C&C.jpeg)
 
 #### **Architectural styles**
 
@@ -99,7 +99,7 @@ Se implementó un patrón arquitécnico con un componente orquestador que hace r
 #### **Logic layers**
 Para complementar la vista por capas de todo el sistema, se establecieron de igual forma la estructura de capas lógicas o subarquitectura de los componentes lógicos a continuación:
 
-![](Youtube_subarchitecture.png)
+![](images/Youtube_subarchitecture.png)
 
 
 ___
