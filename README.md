@@ -103,7 +103,7 @@ Para complementar la vista por capas de todo el sistema, se establecieron de igu
 
 ---
 
-# YouTube Acquisition Data Service Sub-architecture
+##### YouTube Acquisition Data Service Sub-architecture
 
 ![](./images/youtube.png)
 
@@ -139,7 +139,7 @@ Este componente implementa la lógica de adquisición, procesamiento y almacenam
 
 ---
 
-# Google Trends Service Sub-architecture
+##### Google Trends Service Sub-architecture
 
 ![](./images/Google_Trends.png)
 
@@ -170,7 +170,7 @@ Este servicio obtiene y procesa tendencias desde Google Trends.
 
 ---
 
-# NLP Service Sub-architecture
+##### NLP Service Sub-architecture
 
 ![](./images/NLP_Service.png)
 
@@ -192,7 +192,7 @@ Este servicio se encarga del procesamiento de lenguaje natural para enriquecer l
 
 ---
 
-# Users Service Sub-architecture
+##### Users Service Sub-architecture
 
 ![](./images/users_service.png)
 
@@ -270,6 +270,10 @@ Web Frontend (Next.js)
     - Desktop Frontend (WPF)
         - Windows
         - .NET SDK 10 (target net10.0-windows) + WPF (ver desktop-frontend/desktop-frontend.csproj)
+
+### Decomposition View
+
+![](./images/Vista_Descomposicion.png)
 
 ___
 **Pasos para despliegue:**
