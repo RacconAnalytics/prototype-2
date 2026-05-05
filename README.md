@@ -101,6 +101,133 @@ Para complementar la vista por capas de todo el sistema, se establecieron de igu
 
 ![](./images/Layered-Architecture-view-Logic-layers.png)
 
+---
+
+# YouTube Acquisition Data Service Sub-architecture
+
+![](./images/youtube.png)
+
+Este componente implementa la lógica de adquisición, procesamiento y almacenamiento de datos provenientes de la API de YouTube.
+
+- *Controllers* (/analyze, /healthy):
+  Actúan como punto de entrada HTTP. Delegan la lógica al Orchestrator-service y al Cache-service.
+
+- *Cache-service*:
+  Gestiona la verificación de resultados previamente calculados.  
+  - Flechas verdes: puede ser invocado por los controllers y el orquestador para evitar llamadas redundantes.
+  - Flechas rojas: persiste información auxiliar como Quota_log en el repositorio.
+
+- *Orchestrator-service*:
+  Coordina el flujo principal del análisis.
+  - Flechas verdes: invoca servicios permitidos como Transformer-service.
+  - Flechas rojas: invoca hacia abajo a Youtube_client-service para consumir la API externa.
+
+- *Youtube_client-service*:
+  Encapsula las llamadas a la API de YouTube. Solo es invocado por el orquestador (flecha roja).
+
+- *Transformer-service*:
+  Se encarga de mapear y normalizar la respuesta de la API hacia los modelos internos.
+  - Flechas verdes: interactúa con Models / Schemas.
+
+- *Repositories* (Quota_log, Analysis_repository):
+  Persisten datos en MongoDB.
+  - Flechas rojas: indican escritura desde servicios superiores.
+  - Flechas verdes: permiten acceso controlado a los modelos.
+
+- *Models / Schemas*:
+  Definen la estructura tipada de los datos del sistema. Son utilizados por el transformer y los repositorios.
+
+---
+
+# Google Trends Service Sub-architecture
+
+![](./images/Google_Trends.png)
+
+Este servicio obtiene y procesa tendencias desde Google Trends.
+
+- *Controllers* (/interest_over_time, /bulk-interest, /related_queries):
+  Exponen endpoints que delegan la lógica al Trends service.
+
+- *Key build generator*:
+  Genera claves normalizadas para consultas y almacenamiento.
+  - Flechas verdes: puede ser invocado por controllers.
+  - Flechas rojas: persiste información en Repositories.
+
+- *Trends service*:
+  Orquesta la lógica de negocio.
+  - Flechas rojas: invoca a PyTrends client para consumir la API externa.
+
+- *PyTrends client*:
+  Cliente que encapsula la comunicación con Google Trends.
+  - Flechas verdes: entrega datos hacia Models / Schemas.
+
+- *Repositories*:
+  Persisten resultados procesados.
+  - Flechas verdes: interactúan con los modelos.
+
+- *Models / Schemas*:
+  Definen la estructura de datos utilizada en el servicio.
+
+---
+
+# NLP Service Sub-architecture
+
+![](./images/NLP_Service.png)
+
+Este servicio se encarga del procesamiento de lenguaje natural para enriquecer las consultas.
+
+- *Controllers* (/inference, /health):
+  Exponen endpoints para inferencia y monitoreo.
+
+- *Prompt Builder Service*:
+  Construye prompts estructurados para el modelo NLP.
+  - Flechas verdes: interactúa con Models / Schemas.
+
+- *Nvidia Nim Service*:
+  Ejecuta la inferencia usando modelos de IA.
+  - Flechas verdes: también utiliza los modelos definidos.
+
+- *Models / Schemas*:
+  Representan la estructura de entrada/salida del procesamiento NLP.
+
+---
+
+# Users Service Sub-architecture
+
+![](./images/users_service.png)
+
+Gestiona autenticación, usuarios y servicios relacionados.
+
+- *Controllers*:
+  Contienen endpoints de autenticación, OAuth, recuperación de cuenta y perfil de usuario.
+
+- *AuthService*:
+  Núcleo de la lógica de autenticación.
+  - Flechas verdes: interactúa con otros servicios como RateLimitService y UsersService.
+
+- *AuthAuditService*:
+  Registra eventos de autenticación.
+  - Flechas rojas: persiste logs en Repositories.
+
+- *RecoveryMailService*:
+  Gestiona recuperación de cuentas vía correo.
+  - Flechas rojas: escribe en repositorios.
+
+- *RateLimitService*:
+  Controla la tasa de solicitudes hacia el sistema.
+
+- *UsersService*:
+  Gestiona información de usuarios.
+  - Flechas verdes: interactúa con Models / Schemas.
+
+- *Repositories* (PrismaService):
+  Acceso a la base de datos relacional.
+  - Flechas rojas: reciben escritura desde servicios.
+
+- *Models / Schemas*:
+  Definen estructuras de datos para usuarios y autenticación.
+
+---
 
 ___
 ## **Prototype**
