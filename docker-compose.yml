@@ -130,11 +130,13 @@ services:
       JWT_SECRET: "raccon_local_dev_secret_2026"
       USER_SERVICE_URL: "http://users-service:3001"
       YOUTUBE_SCRAPPER_SERVICE_URL: "http://youtube-service:8000/api"
+      GOOGLE_TRENDS_SERVICE_URL: "http://google-trends-service:8001"
       REDDIT_SCRAPPER_SERVICE_URL: ""
       NLP_SERVICE_URL: "http://nlp-service:8193"
     depends_on:
       - users-service
       - youtube-service
+      - google-trends-service
       - nlp-service
 
   web-page:
