@@ -95,16 +95,183 @@ Nuestro sistema cuenta con:
 Se implementó un patrón arquitécnico con un componente orquestador que hace referencia al API-gateway, evitando que los componentes de presentación adquieran una responsabilidad de sincronización de lógica de negocio que no es responsabilidad natural en la capa de presentación. Este componente es el punto único de entrada el sistema de análisis de tendencias. Recibe las solicitudes del cliente, enruta las peticiones al microservicio correspondiente, gestionando autenticación, validación y contro de acceso. De esta manera, se desacopla al cliente de la arquitectura interna basada en microservicios y simplifica la comunicación.
 
 ---
-### **Layered Structure**
+## **Layered Structure**
 
-#### **Logic layers**
+![](./images/Layered-Architecture-view-Logic-layers.png)
+
+## Tier 1 — Presentation
+
+### Web Frontend
+- **Stack:** Next.js 14, React 18, TailwindCSS 4, DaisyUI 5, Recharts, Framer Motion
+- **Puerto:** 3000
+- **Responsabilidades:**
+  1. Renderizar UI de autenticación (login, registro, recuperación de contraseña, OAuth callback)
+  2. Dashboard con gráficas interactivas de tendencias y análisis
+  3. Comunicación con el API Gateway vía HTTP REST
+- **Endpoints que consume:** `GET/POST /api/users/*`, `GET /api/youtube/*`, `GET /api/trends/*`
+- **Dependencias:** api-gateway (HTTP REST)
+
+### Desktop Frontend
+- **Stack:** WPF, C# (.NET), XAML
+- **Responsabilidades:**
+  1. UI de escritorio para autenticación (SignIn, CreateAccount)
+  2. Dashboard desktop con HomePage
+  3. Comunicación con el API Gateway vía HTTP REST
+- **Endpoints que consume:** Mismos que Web Frontend
+- **Dependencias:** api-gateway (HTTP REST)
+
+---
+
+## Tier 2 — Distribution
+
+### API Gateway
+- **Stack:** Go, net/http, golang-jwt, godotenv
+- **Puerto:** 8080
+- **Responsabilidades:**
+  1. JWT Authentication — valida Bearer tokens en rutas protegidas; inyecta X-User-Id y X-User-Email en headers downstream
+  2. Reverse Proxy — reescribe rutas públicas (`/api/users/*` → users-service, `/api/youtube/*` → youtube-service, `/api/reddit/*` → reddit-service)
+  3. CORS + Logging middleware — maneja preflight OPTIONS, loguea método/ruta/status/latencia/IP
+- **Endpoints públicos:** `/health`, `/health/dependencies`, `/api/users/auth/*`
+- **Dependencias:** users-service (HTTP REST), youtube-service (HTTP REST), nlp-service (HTTP REST)
+
+---
+
+## Tier 3 — Business Logic
+
+### Layer: Data Acquisition & Processing
+
+#### YouTube Acquisition Service
+- **Stack:** Python 3, FastAPI, Motor (MongoDB async), aio-pika (RabbitMQ), redis-py, google-api-python-client
+- **Puerto:** 8000
+- **Responsabilidades:**
+  1. Scraping de YouTube Data API v3 — búsqueda y recolección de datos de videos/canales
+  2. Gestión de cuota de API — tracking y rate limiting del YouTube API quota
+  3. Orquestación asíncrona de análisis via RabbitMQ (producer/consumer de `analyses_queue` y `results_queue`)
+- **Endpoints:** `GET/POST /api/analyze`, `GET /api/health`
+- **DBs:** MongoDB (cache de análisis), Redis (cache de queries con TTL 5min), RabbitMQ (mensajería asíncrona)
+- **Dependencias:** MongoDB, Redis, RabbitMQ, nlp-service (allowed-to-use-below), YouTube Data API (externa), users-service (validación)
+
+#### Google Trends Acquisition Service
+- **Stack:** Python 3, FastAPI, Motor (MongoDB async), pytrends
+- **Puerto:** 8001
+- **Responsabilidades:**
+  1. Retrieval de datos de Google Trends — volumen de búsqueda histórica, queries relacionadas
+  2. Cache en MongoDB con TTL 24h — minimiza llamadas a la API de Google Trends
+  3. Delegación de NLP al servicio NLP para expansión de keywords
+- **Endpoints:** `GET /api/v1/trends/*`, `GET /health`
+- **DBs:** MongoDB (cache de tendencias)
+- **Dependencias:** MongoDB, nlp-service (allowed-to-use-below), Google Trends API (externa), users-service (validación)
+
+#### NLP Service
+- **Stack:** Java 17, Spring Boot 3.2, Jackson
+- **Puerto:** 8193
+- **Responsabilidades:**
+  1. Expansión de Keywords — genera keywords adicionales a partir de una query original
+  2. Enrichment de queries — genera expanded_queries para mejorar búsquedas
+  3. Detección de idioma del input
+- **Endpoints:** `POST /inference`, `GET /inference/health`
+- **Dependencias:** Nvidia NIM API (externa, HTTP REST)
+
+### Layer: User Management
+
+#### Users Management Service
+- **Stack:** NestJS 11, Prisma ORM, PostgreSQL, Redis (ioredis), Passport (Google OAuth2, GitHub OAuth2, JWT), bcrypt, nodemailer
+- **Puerto:** 3001
+- **Responsabilidades:**
+  1. Autenticación — Local (email/password con bcrypt), OAuth2 (Google, GitHub), JWT (access + refresh tokens)
+  2. CRUD de Users — registro, actualización de perfil/settings, recovery de contraseña via email
+  3. Rate Limiting de auth endpoints + audit de sesiones
+- **Endpoints:** `POST /api/v1/auth/*`, `GET/PUT /api/v1/users/*`, `POST /api/v1/auth/recovery/*`
+- **DBs:** PostgreSQL (users, sessions), Redis (rate limiting + session cache)
+- **Dependencias:** PostgreSQL, Redis, OAuth Google API (externa)
+
+---
+
+## Tier 4 — Data
+
+### PostgreSQL
+- **Imagen:** postgres:15
+- **Puerto:** 5432
+- **Responsabilidades:** Almacenamiento relacional de usuarios, configuraciones y sesiones
+- **Usado por:** users-service (vía Prisma ORM)
+
+### MongoDB
+- **Imagen:** mongo:6
+- **Puerto:** 27017
+- **Responsabilidades:** Almacenamiento documental de cache de análisis YouTube y tendencias Google
+- **Usado por:** youtube-acquisition-service, google-trends-acquisition-service (vía Motor async)
+
+### Redis
+- **Imagen:** redis:7
+- **Puerto:** 6379
+- **Responsabilidades:** Cache de queries (YouTube: TTL 5min), rate limiting de auth (Users), session cache
+- **Usado por:** youtube-acquisition-service, users-service (vía ioredis)
+
+### RabbitMQ
+- **Imagen:** rabbitmq:3-management
+- **Puertos:** 5672 (AMQP), 15672 (Management UI)
+- **Responsabilidades:** Mensajería asíncrona para orquestación de análisis (producer/consumer pattern)
+- **Colas:** `analyses_queue`, `results_queue`
+- **Usado por:** youtube-acquisition-service (vía aio-pika)
+
+---
+
+## External APIs
+
+### YouTube Data API v3
+- **Protocolo:** HTTP REST
+- **Responsabilidades:** Provee datos de búsqueda, videos y canales de YouTube
+- **Usado por:** youtube-acquisition-service
+
+### Google Trends API (pytrends)
+- **Protocolo:** HTTP (via pytrends library)
+- **Responsabilidades:** Provee datos de volumen de búsqueda histórica y queries relacionadas
+- **Usado por:** google-trends-acquisition-service
+
+### Nvidia NIM API
+- **Protocolo:** HTTP REST
+- **Responsabilidades:** Inferencia LLM para expansión de keywords y enriquecimiento de queries
+- **Usado por:** nlp-service-nvidia
+
+### OAuth Google API
+- **Protocolo:** OAuth 2.0 / HTTP REST
+- **Responsabilidades:** Autenticación de usuarios via Google SSO
+- **Usado por:** users-service (vía Passport Google OAuth2 strategy)
+
+---
+
+## Relations Summary
+
+| Origen | Destino | Protocolo | Tipo |
+|---|---|---|---|
+| Web Frontend | API Gateway | HTTP REST | allowed-to-use |
+| Desktop Frontend | API Gateway | HTTP REST | allowed-to-use |
+| API Gateway | YouTube Acquisition | HTTP REST | allowed-to-use |
+| API Gateway | Google Trends Acquisition | HTTP REST | allowed-to-use |
+| API Gateway | Users Management | HTTP REST | allowed-to-use |
+| YouTube Acquisition | MongoDB | DB_CONNECTOR | allowed-to-use |
+| YouTube Acquisition | Redis | DB_CONNECTOR | allowed-to-use |
+| YouTube Acquisition | RabbitMQ | AMQP | allowed-to-use |
+| YouTube Acquisition | NLP Service | HTTP REST | allowed-to-use-below |
+| YouTube Acquisition | YouTube Data API | HTTP REST | allowed-to-use |
+| Google Trends Acquisition | MongoDB | DB_CONNECTOR | allowed-to-use |
+| Google Trends Acquisition | NLP Service | HTTP REST | allowed-to-use-below |
+| Google Trends Acquisition | Google Trends API | HTTP REST | allowed-to-use |
+| NLP Service | Nvidia NIM API | HTTP REST | allowed-to-use |
+| Users Management | PostgreSQL | DB_CONNECTOR | allowed-to-use |
+| Users Management | Redis | DB_CONNECTOR | allowed-to-use |
+| Users Management | OAuth Google API | HTTP REST | allowed-to-use |
+
+---
+
+### **Logic layers**
 Para complementar la vista por capas de todo el sistema, se establecieron de igual forma la estructura de capas lógicas o subarquitectura de los componentes lógicos a continuación:
 
 ![](./images/Layered-Architecture-view-Logic-layers.png)
 
 ---
 
-##### YouTube Acquisition Data Service Sub-architecture
+#### YouTube Acquisition Data Service Sub-architecture
 
 ![](./images/youtube.png)
 
@@ -140,7 +307,7 @@ Este componente implementa la lógica de adquisición, procesamiento y almacenam
 
 ---
 
-##### Google Trends Service Sub-architecture
+#### Google Trends Service Sub-architecture
 
 ![](./images/Google_Trends.png)
 
@@ -171,7 +338,7 @@ Este servicio obtiene y procesa tendencias desde Google Trends.
 
 ---
 
-##### NLP Service Sub-architecture
+#### NLP Service Sub-architecture
 
 ![](./images/NLP_Service.png)
 
@@ -193,7 +360,7 @@ Este servicio se encarga del procesamiento de lenguaje natural para enriquecer l
 
 ---
 
-##### Users Service Sub-architecture
+#### Users Service Sub-architecture
 
 ![](./images/users_service.png)
 
@@ -234,11 +401,20 @@ Gestiona autenticación, usuarios y servicios relacionados.
 
 ![](./images/Vista_Descomposicion.png)
 
+La aplicación fue dividida en dos modulos principales y 3 sub-modulos, con un total de 11 funcionalidades
+
+-User Auth: Es el modulo que contiene todas las funciones que permiten al usuario ingresar, crear su cuenta, salir de la sesión, recuperar contraseña y autorizarse como usuario
+-Search: Es el modulo que contiene todo lo relacionado a busqueda, en este caso 3 sub-modulos que nos indican como se dividen estas funcionalidades
+-Sub-modulo Optimize Search: Es el que contiene tanto la generación de busquedas relacionadas por parte de nuestro modelo LLM como el guardado de las busquedas previas usando un caché
+-Sub-modulo Youtube: Contiene tanto la funcionalidad de la busqueda en youtube como la funcionalidad de la generación de stats y gráficas para youtube
+-Sub_modulo Google Trends: Al igual que el sub-modulo de Youtube contiene las funcionalidades de la generación de stats y graficas pero para google trends
 ---
 
 ### Deployment View
 
 ![](./images/Vista_Despliegue.png)
+
+
 ___
 ## **Prototype**
 ### Intructions
