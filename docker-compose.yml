@@ -1,97 +1,156 @@
-# RacconAnalytics — Entorno completo (Microservicios + DBs)
-# Uso: docker compose up -d --build
-
+version: "3.9"
 services:
   postgres:
-    image: postgres:16-alpine
-    container_name: raccon-postgres
-    restart: unless-stopped
+    image: postgres:15
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: users_service
+      POSTGRES_DB: users_db
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongo:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongo --eval 'db.adminCommand(\"ping\")' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "status"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
 
   redis:
-    image: redis:7-alpine
-    container_name: raccon-redis
-    restart: unless-stopped
+    image: redis:7
     ports:
       - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   users-service:
-    build:
-      context: ./users-service
-      dockerfile: Dockerfile
-    container_name: raccon-users-service
-    restart: unless-stopped
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/users_service?schema=public
-      - REDIS_URL=redis://redis:6379
-    env_file:
-      - ./users-service/.env
+    build: ./users-service
     ports:
       - "3001:3001"
+    environment:
+      DATABASE_URL: "postgres://postgres:postgres@postgres:5432/users_db"
+      REDIS_URL: "redis://redis:6379"
+      JWT_SECRET: "raccon_local_dev_secret_2026"
+      GOOGLE_CLIENT_ID: "628883857558-p3rfuulnnet6le621vchbv8vafsru8in.apps.googleusercontent.com"
+      GOOGLE_CLIENT_SECRET: "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"
+      GOOGLE_CALLBACK_URL: "http://localhost:8080/api/users/auth/google/callback"
+      FRONTEND_OAUTH_REDIRECT_URL: "http://localhost:3000/auth/callback"
+      GITHUB_CLIENT_ID: "local-dev"
+      GITHUB_CLIENT_SECRET: "local-dev"
+      GITHUB_CALLBACK_URL: "http://localhost:3001/api/v1/auth/github/callback"
+      SMTP_PROVIDER: "mailtrap"
+      SMTP_HOST: "sandbox.smtp.mailtrap.io"
+      SMTP_PORT: "2525"
+      SMTP_SECURE: "false"
+      SMTP_USER: "9ec48f696d434d"
+      SMTP_PASS: "ba7feb628cc3b2"
+      SMTP_FROM: "raccon-analytics@raccon.com"
+      FRONTEND_BASE_URL: "http://localhost:3000"
     depends_on:
-      postgres:
+      - postgres
+      - redis
+
+  nlp-service:
+    build: ./nlp-service-nvidia
+    ports:
+      - "8193:8193"
+    environment:
+      NVIDIA_NIM_API_KEY: "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"
+
+  google-trends-service:
+    build: ./google-trends-acquisition-service
+    ports:
+      - "8001:8001"
+    environment:
+      MONGO_URI: "mongodb+srv://api_user:EK24H4dG0bwiQHXJ@googletrendscache.grdvrqa.mongodb.net/?appName=GoogleTrendsCache"
+      MONGODB_URI: "mongodb+srv://api_user:EK24H4dG0bwiQHXJ@googletrendscache.grdvrqa.mongodb.net/?appName=GoogleTrendsCache"
+      MONGODB_DB_NAME: "google_trends"
+      USER_SERVICE_URL: "http://users-service:3001"
+      NLP_SERVICE_URL: "http://nlp-service:8193"
+      NLP_INFERENCE_ENDPOINT: "/inference"
+      NLP_REQUEST_TIMEOUT: "10"
+    depends_on:
+      - mongo
+      - users-service
+      - nlp-service
+
+  youtube-service:
+    build: ./youtube-acquisition-service
+    ports:
+      - "8000:8000"
+    environment:
+      YOUTUBE_API_KEY: "AIzaSyDmesYXpyWDj8A7sYRRzFXMDtEUboTUOtw"
+      MONGO_URI: "mongodb+srv://raccon:r4cc0n_4n4ly71c5@cluster0.mydn5od.mongodb.net/?appName=Cluster0&retryWrites=true&w=majority"
+      USER_SERVICE_URL: "http://users-service:3001"
+      NLP_SERVICE_URL: "http://nlp-service:8193"
+    depends_on:
+      mongo:
+        condition: service_started
+      users-service:
+        condition: service_started
+      nlp-service:
+        condition: service_started
+      rabbitmq:
         condition: service_healthy
       redis:
         condition: service_healthy
 
-  youtube-service:
-    build:
-      context: ./youtube-acquisition-service
-      dockerfile: Dockerfile
-    container_name: raccon-youtube-service
-    restart: unless-stopped
-    env_file:
-      - ./youtube-acquisition-service/.env
-    ports:
-      - "8000:8000"
-
   api-gateway:
-    build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
-    container_name: raccon-api-gateway
-    restart: unless-stopped
-    environment:
-      - USER_SERVICE_URL=http://users-service:3001
-      - YOUTUBE_SCRAPPER_SERVICE_URL=http://youtube-service:8000/api
-    env_file:
-      - ./api-gateway/.env
+    build: ./api-gateway
     ports:
-      - "3000:3000"
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      JWT_SECRET: "raccon_local_dev_secret_2026"
+      USER_SERVICE_URL: "http://users-service:3001"
+      YOUTUBE_SCRAPPER_SERVICE_URL: "http://youtube-service:8000/api"
+      REDDIT_SCRAPPER_SERVICE_URL: ""
+      NLP_SERVICE_URL: "http://nlp-service:8193"
     depends_on:
       - users-service
       - youtube-service
-      # nlp-service removed from composition
-
-
+      - nlp-service
 
   web-page:
     build:
       context: ./web-page
-      dockerfile: Dockerfile
-    container_name: raccon-web-page
-    restart: unless-stopped
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:8080"
+        VITE_USE_MOCKS: "false"
     ports:
-      - "5173:80"
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: "http://localhost:8080"
+      VITE_USE_MOCKS: "false"
     depends_on:
       - api-gateway
 
 volumes:
-  pgdata:
+  postgres_data:
+  mongo_data:
