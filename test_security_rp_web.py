@@ -169,11 +169,11 @@ def test_security_headers():
 	print("  Checking headers on frontend (port 3000)...")
 	try:
 		r = requests.get(WEB_PAGE_URL, timeout=5)
-		for header, details in headers_to_check.items():
-			if header in r.headers:
-				info(f"  {header}: present ({r.headers[header]})")
+		for headers, details in headers_to_check.items():
+			if headers in r.headers:
+				info(f"  {headers}: present ({r.headers[headers]})")
 			else:
-				vuln(f"Missing {header} — {details['desc']}")
+				vuln(f"Missing {headers} — {details['desc']}")
 				info(f"  Attack mitigated: {details['attack']}")
 				info(f"  Quality attribute: {details['attribute']}")
 	except requests.ConnectionError:
@@ -183,9 +183,9 @@ def test_security_headers():
 	print(f"\n  Checking headers on API Gateway ({API_GATEWAY_URL})...")
 	try:
 		r = requests.get(f"{API_GATEWAY_URL}/health", timeout=5)
-		for header, details in headers_to_check.items():
-			if header in r.headers:
-				info(f"  {header}: present ({r.headers[header]})")
+		for headers, details in headers_to_check.items():
+			if headers in r.headers:
+				info(f"  {headers}: present ({r.headers[headers]})")
 			else:
 				vuln(f"Missing {header} — {details['desc']}")
 	except requests.ConnectionError:
@@ -276,9 +276,9 @@ def test_server_info_leakage():
 		print(f"  Checking {label} headers...")
 		try:
 			r = requests.get(url, timeout=5)
-			for header in leaky_headers:
-				if header in r.headers:
-					vuln(f"{label} exposes {header}: {r.headers[header]}")
+			for headers in leaky_headers:
+				if headers in r.headers:
+					vuln(f"{label} exposes {headers}: {r.headers[headers]}")
 					info(f"  This reveals technology stack information to attackers")
 		except requests.ConnectionError:
 			info(f"{label} not reachable")
